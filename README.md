@@ -42,7 +42,10 @@ the hand pointing sideways).
    shape for D, so it is ignored until your hand changes shape).
 4. Touch **Submit** on the bar in front of you with a fingertip. **Undo**
    removes a letter.
-5. **Practice** shows one shape at a time and tracks which letters you have
+5. After the daily word, **Two boards** is a bonus game: two hidden words,
+   every guess is played on both, and you have seven tries to solve both.
+   A solved board stops taking guesses.
+6. **Practice** shows one shape at a time and tracks which letters you have
    learned. **Options** changes the hold time (0.6 to 1.8 s), a colour-blind
    friendly palette, and which hand the pictures show.
 
@@ -146,7 +149,7 @@ If a letter misbehaves, the thresholds are plain numbers in
 
 ### How it was tested, and what has not been
 
-- 97 unit tests (`npm test`). The recogniser is checked against (a) the
+- 100 unit tests (`npm test`). The recogniser is checked against (a) the
   synthetic reference hand in `src/game/hand-model.ts`, with noise and tilt,
   and (b) joint data captured from the WebXR emulator's built-in hand poses,
   which were not made for this game.

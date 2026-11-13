@@ -22,7 +22,7 @@ Draft only. Nothing has been submitted. Items marked **TODO** need you.
 
 Daily word games are a habit millions of people already have, and they are
 played on a keyboard. In a headset with hand tracking, the keyboard can be
-your hand. Fingerspelling is a real, existing way of spelling with one hand,
+your hand. Fingerspelling is an existing way of spelling with one hand,
 so the input is not an invented gesture set: it is something worth knowing
 after the headset comes off.
 
@@ -35,8 +35,9 @@ letter drops onto the board. Each guess is marked right place, wrong place or
 not in the word. Six tries, a daily streak, about five minutes, sitting down,
 no controllers at any point.
 
-A three-shape tutorial has you spelling a word inside the first minute, and a
-practice mode tracks which letters you have learned. Either hand works, the
+A three-shape tutorial has you spelling a word inside the first minute,
+practice tracks which letters you have learned, and a two-board bonus plays
+every guess on two words at once. Either hand works, the
 hold time is adjustable, and results never rely on colour alone.
 
 ### How we built it
@@ -44,8 +45,8 @@ hold time is adjustable, and results never rely on colour alone.
 It is a WebXR app built with Meta's Immersive Web SDK, so it runs in the
 Quest browser from a link. The game reads the 25 hand joints each frame, and a
 purpose-built recogniser scores each letter from finger bend, thumb position
-and fingertip contact. There is no machine-learning model, no camera image and
-no server: the word, the streak and the recognition all stay on the headset.
+and fingertip contact. No machine-learning model, no camera image, no
+server: the word, the streak and the recognition all stay on the headset.
 Everything is placed around the player's seated head position.
 
 ### Challenges we ran into
@@ -56,14 +57,14 @@ fingertip and ignore far pinches. The finger that has just pressed a button is
 still pointing, which is the shape for D, so that shape is ignored until the
 hand changes.
 
-Look-alike letters were the other problem. M, N, S and T are fists that differ
+Look-alike letters were the other. M, N, S and T are fists that differ
 only by a hidden thumb, so the word list avoids them rather than guessing.
 
 ### Accomplishments that we're proud of
 
 A complete, replayable game with no controller and no backend, a first minute
-with no wall of text, and 97 automated tests, including the recogniser checked
-against hand poses that were not made for this game. **TODO:** add one line on
+with no wall of text, and 100 automated tests, including the recogniser checked
+against hand poses not made for this game. **TODO:** add one line on
 how it held up on the headset.
 
 ### What we learned
@@ -121,7 +122,7 @@ Take these in the headset if possible; simulator captures are allowed.
 - **Seated placement.** When the session starts, the board, charts and
   button bar are positioned from the player's actual head height and facing
   direction, so it fits a chair, a sofa or a bed without setup.
-- **Testing.** 97 automated tests cover the recogniser (against a synthetic
+- **Testing.** 100 automated tests cover the recogniser (against a synthetic
   hand with noise and tilt, and against joint data captured from the WebXR
   emulator's hand poses), the game rules, the hold logic and the streak. A
   full round was played hands-only in the emulator. **TODO before

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LETTER_POSES, REST_POSE, SUPPORTED_LETTERS, buildHandWorld } from '../src/game/hand-model.js';
-import { HoldDetector, Round, evaluateGuess } from '../src/game/logic.js';
+import { DuoRound, HoldDetector, Round, evaluateGuess } from '../src/game/logic.js';
 import { HandshapeRecognizer, RECOGNISED_LETTERS } from '../src/game/recognizer.js';
 import { currentStreak, defaultSave, recordDaily } from '../src/game/save.js';
 import { WORDS, dailyWord } from '../src/game/words.js';
@@ -99,6 +99,39 @@ describe('round', () => {
     const r = new Round('WORLD', { guesses: Array(6).fill('HELLO') });
     expect(r.status).toBe('lost');
     expect(r.guesses).toHaveLength(6);
+  });
+});
+
+describe('two boards', () => {
+  const play = (r: DuoRound, word: string) => {
+    for (const c of word) r.addLetter(c);
+    return r.submit();
+  };
+  it('plays each guess on both boards and freezes a solved board', () => {
+    const r = new DuoRound(['CLOUD', 'LODGE']);
+    expect(play(r, 'COULD')).toEqual([
+      ['correct', 'present', 'present', 'present', 'correct'],
+      ['absent', 'correct', 'absent', 'present', 'present'],
+    ]);
+    expect(play(r, 'CLOUD')![0]).toEqual(Array(5).fill('correct'));
+    expect(r.solvedAt).toEqual([1, -1]);
+    expect(r.status).toBe('playing');
+    // The solved board takes no more guesses.
+    expect(play(r, 'LODGE')).toEqual([null, Array(5).fill('correct')]);
+    expect(r.status).toBe('won');
+  });
+  it('is lost after seven guesses with a board unsolved', () => {
+    const r = new DuoRound(['CLOUD', 'LODGE']);
+    play(r, 'CLOUD');
+    for (let i = 0; i < 6; i++) play(r, 'BLOOD');
+    expect(r.status).toBe('lost');
+    expect(r.guesses).toHaveLength(7);
+  });
+  it('reports chart states from the boards still in play', () => {
+    const r = new DuoRound(['CLOUD', 'LODGE']);
+    play(r, 'CLOUD');
+    // C is correct on the solved board but absent on the open one.
+    expect(r.letterStates()).toMatchObject({ C: 'absent', L: 'present', O: 'present', D: 'present' });
   });
 });
 

@@ -175,3 +175,74 @@ export class HoldDetector {
     return null;
   }
 }
+
+export const DUO_MAX_GUESSES = 7;
+
+/**
+ * Two words at once: every guess is played on both boards, and a board stops
+ * taking guesses once it is solved. Both must be solved within seven guesses.
+ */
+export class DuoRound {
+  guesses: string[] = [];
+  /** marks[board][guess]; null where that board was already solved. */
+  marks: Array<Array<Mark[] | null>> = [[], []];
+  /** Index of the guess that solved each board, or -1. */
+  solvedAt: [number, number] = [-1, -1];
+  current = '';
+  status: RoundStatus = 'playing';
+
+  constructor(readonly answers: readonly [string, string]) {}
+
+  addLetter(letter: string): boolean {
+    if (this.status !== 'playing' || this.current.length >= WORD_LENGTH) return false;
+    this.current += letter;
+    return true;
+  }
+
+  undo(): boolean {
+    if (this.status !== 'playing' || this.current.length === 0) return false;
+    this.current = this.current.slice(0, -1);
+    return true;
+  }
+
+  canSubmit(): boolean {
+    return this.status === 'playing' && this.current.length === WORD_LENGTH;
+  }
+
+  /** @returns this guess's marks per board (null for a board already solved). */
+  submit(): Array<Mark[] | null> | null {
+    if (!this.canSubmit()) return null;
+    const index = this.guesses.length;
+    const result = this.answers.map((answer, b) => {
+      if (this.solvedAt[b] >= 0) return null;
+      if (this.current === answer) this.solvedAt[b] = index;
+      return evaluateGuess(this.current, answer);
+    });
+    this.guesses.push(this.current);
+    result.forEach((marks, b) => this.marks[b].push(marks));
+    if (this.solvedAt[0] >= 0 && this.solvedAt[1] >= 0) this.status = 'won';
+    else if (this.guesses.length >= DUO_MAX_GUESSES) this.status = 'lost';
+    this.current = '';
+    return result;
+  }
+
+  /**
+   * Best known state of each letter across the boards still in play (all
+   * boards once the round is over), for the handshape chart.
+   */
+  letterStates(): Record<string, Mark> {
+    const rank: Record<Mark, number> = { absent: 0, present: 1, correct: 2 };
+    const out: Record<string, Mark> = {};
+    const open = [0, 1].filter((b) => this.solvedAt[b] < 0);
+    for (const b of open.length > 0 ? open : [0, 1]) {
+      this.guesses.forEach((guess, g) => {
+        const marks = this.marks[b][g];
+        if (!marks) return;
+        [...guess].forEach((letter, i) => {
+          if (out[letter] === undefined || rank[marks[i]] > rank[out[letter]]) out[letter] = marks[i];
+        });
+      });
+    }
+    return out;
+  }
+}

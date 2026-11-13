@@ -10,7 +10,7 @@ import {
   VisibilityState,
 } from '@iwsdk/core';
 import { SUPPORTED_LETTERS } from './game/hand-model.js';
-import { Mark, Round } from './game/logic.js';
+import { DUO_MAX_GUESSES, DuoRound, Mark, Round } from './game/logic.js';
 import {
   HOLD_OPTIONS,
   MASTERY_COUNT,
@@ -76,6 +76,8 @@ export class GameSystem extends createSystem({}) {
   private save!: SaveData;
   private screen: Screen = 'home';
   private round: Round | null = null;
+  /** The two-board bonus game; null while a single-word round is showing. */
+  private duo: DuoRound | null = null;
   private roundIsDaily = false;
   private day = 0;
 
@@ -96,14 +98,20 @@ export class GameSystem extends createSystem({}) {
   private practiceTarget = 'L';
   private practiceRun = 0;
 
-  private reveal: { row: number; marks: Mark[]; shown: number; timer: number } | null = null;
+  private reveal: {
+    row: number;
+    marks: Mark[];
+    duo: Array<Mark[] | null> | null;
+    shown: number;
+    timer: number;
+  } | null = null;
   private msgTimer = 0;
   private clock = 0;
   private shown = { letter: '', status: '', fill: -1 };
 
   // Letter feedback: effects at the hand, and tiles that pop when a letter lands.
   private fx = new LetterFx();
-  private pops = Array.from({ length: 12 }, () => ({ row: 0, col: 0, t: 0, wait: 0, size: 0, active: false }));
+  private pops = Array.from({ length: 16 }, () => ({ id: '', t: 0, wait: 0, size: 0, active: false }));
   private lastCandidate: string | null = null;
   private target = new Vector3();
 
@@ -132,13 +140,21 @@ export class GameSystem extends createSystem({}) {
       else console.warn(`[fingerspell] missing UI element #${id}`);
     };
     for (const id of [
-      'streak', 'view-grid', 'view-info', 'info-title', 'info-1', 'info-2', 'info-3',
+      'streak', 'view-grid', 'view-duo', 'view-info', 'info-title', 'info-1', 'info-2', 'info-3',
       'info-4', 'info-5', 'msg', 'sign-letter', 'sign-status', 'sign-fill',
     ]) grab(this.board, id);
     for (let r = 0; r < MAX_GUESSES; r++) {
       for (let c = 0; c < WORD_LENGTH; c++) {
         grab(this.board, `t-${r}-${c}`);
         grab(this.board, `tl-${r}-${c}`);
+      }
+    }
+    for (let b = 0; b < 2; b++) {
+      for (let r = 0; r < DUO_MAX_GUESSES; r++) {
+        for (let c = 0; c < WORD_LENGTH; c++) {
+          grab(this.board, `d${b}-${r}-${c}`);
+          grab(this.board, `dl${b}-${r}-${c}`);
+        }
       }
     }
     for (const letter of LEFT_CHART) grab(chartLeft, `k-${letter}`);
@@ -314,7 +330,9 @@ export class GameSystem extends createSystem({}) {
   }
 
   private view(grid: boolean): void {
-    this.el.get('view-grid')?.setProperties({ display: grid ? 'flex' : 'none' });
+    const duo = grid && this.duo !== null;
+    this.el.get('view-grid')?.setProperties({ display: grid && !duo ? 'flex' : 'none' });
+    this.el.get('view-duo')?.setProperties({ display: duo ? 'flex' : 'none' });
     this.el.get('view-info')?.setProperties({ display: grid ? 'none' : 'flex' });
   }
 
@@ -356,12 +374,20 @@ export class GameSystem extends createSystem({}) {
     return out;
   }
 
+  /** The same for a tile on one of the two small boards. */
+  private duoTileWorld(board: number, row: number, col: number, out: Vector3): Vector3 {
+    out
+      .set((board === 0 ? -0.112 : 0.112) + (col - (WORD_LENGTH - 1) / 2) * 0.042, 0.35 - (0.1265 + row * 0.061), 0.012)
+      .applyQuaternion(this.board.quaternion)
+      .add(this.board.position);
+    return out;
+  }
+
   /** Make a tile swell and settle. `wait` staggers a row of them. */
-  private pop(row: number, col: number, size: number, wait = 0): void {
-    const slot = this.pops.find((q) => !q.active || (q.row === row && q.col === col));
+  private pop(id: string, size: number, wait = 0): void {
+    const slot = this.pops.find((q) => q.active && q.id === id) ?? this.pops.find((q) => !q.active);
     if (!slot) return;
-    slot.row = row;
-    slot.col = col;
+    slot.id = id;
     slot.size = size;
     slot.wait = wait;
     slot.t = 0;
@@ -380,7 +406,7 @@ export class GameSystem extends createSystem({}) {
       // Quick swell, then an eased settle back to rest.
       const k = done ? 0 : Math.sin(Math.min(1, q.t) * Math.PI) * (1 - q.t * 0.5);
       const scale = 1 + q.size * k;
-      this.el.get(`t-${q.row}-${q.col}`)?.setProperties({ transformScaleX: scale, transformScaleY: scale });
+      this.el.get(q.id)?.setProperties({ transformScaleX: scale, transformScaleY: scale });
       if (done) q.active = false;
     }
   }
@@ -389,15 +415,38 @@ export class GameSystem extends createSystem({}) {
     for (const q of this.pops) {
       if (!q.active) continue;
       q.active = false;
-      this.el.get(`t-${q.row}-${q.col}`)?.setProperties({ transformScaleX: 1, transformScaleY: 1 });
+      this.el.get(q.id)?.setProperties({ transformScaleX: 1, transformScaleY: 1 });
     }
   }
 
   private paintTile(row: number, col: number, letter: string, mark: Mark | null): void {
+    this.paintCell(`t-${row}-${col}`, `tl-${row}-${col}`, letter, mark);
+  }
+
+  private paintDuoTile(board: number, row: number, col: number, letter: string, mark: Mark | null): void {
+    this.paintCell(`d${board}-${row}-${col}`, `dl${board}-${row}-${col}`, letter, mark);
+  }
+
+  private paintDuo(): void {
+    const duo = this.duo;
+    if (!duo) return;
+    for (let b = 0; b < 2; b++) {
+      for (let r = 0; r < DUO_MAX_GUESSES; r++) {
+        const marks = r < duo.guesses.length ? duo.marks[b][r] : null;
+        const typing = r === duo.guesses.length && duo.status === 'playing' && duo.solvedAt[b] < 0;
+        for (let c = 0; c < WORD_LENGTH; c++) {
+          if (marks) this.paintDuoTile(b, r, c, duo.guesses[r][c], marks[c]);
+          else this.paintDuoTile(b, r, c, typing ? (duo.current[c] ?? '') : '', null);
+        }
+      }
+    }
+  }
+
+  private paintCell(tileId: string, labelId: string, letter: string, mark: Mark | null): void {
     const p = this.palette();
-    this.text(`tl-${row}-${col}`, letter || ' ');
-    const tile = this.el.get(`t-${row}-${col}`);
-    const label = this.el.get(`tl-${row}-${col}`);
+    this.text(labelId, letter || ' ');
+    const tile = this.el.get(tileId);
+    const label = this.el.get(labelId);
     if (mark === null) {
       tile?.setProperties({
         backgroundColor: '#181b23',
@@ -416,9 +465,8 @@ export class GameSystem extends createSystem({}) {
 
   private paintChart(): void {
     const p = this.palette();
-    const states = this.round && (this.screen === 'round' || this.screen === 'result')
-      ? this.round.letterStates()
-      : {};
+    const game = this.duo ?? this.round;
+    const states = game && (this.screen === 'round' || this.screen === 'result') ? game.letterStates() : {};
     for (const letter of SUPPORTED_LETTERS) {
       const mark = states[letter] as Mark | undefined;
       const lesson =
@@ -451,6 +499,7 @@ export class GameSystem extends createSystem({}) {
     this.focus.material.color.setHex(this.palette().hand.unknown);
     this.fx.setColor(this.save.highContrast ? 0xffffff : 0xf5c542);
     this.paintGrid();
+    this.paintDuo();
     this.paintChart();
   }
 
@@ -637,14 +686,21 @@ export class GameSystem extends createSystem({}) {
   private startDaily(): void {
     this.day = dayNumber();
     const today = this.save.today?.day === this.day ? this.save.today : null;
+    this.duo = null;
     this.round = new Round(dailyWord(this.day), today ? { guesses: today.guesses } : undefined);
     this.roundIsDaily = true;
     if (this.round.status === 'playing') this.showRound();
     else this.showResult(true);
   }
 
-  private startBonus(): void {
-    this.round = new Round(randomWord(dailyWord(this.day)));
+  /** The bonus game: two random words, every guess played on both boards. */
+  private startDuo(): void {
+    const first = randomWord(dailyWord(this.day));
+    let second = randomWord(first);
+    while (second === dailyWord(this.day)) second = randomWord(first);
+    this.round = null;
+    this.duo = new DuoRound([first, second]);
+    if (import.meta.env.DEV) console.log(`[fingerspell] two boards ${first} ${second}`);
     this.roundIsDaily = false;
     this.showRound();
   }
@@ -653,6 +709,7 @@ export class GameSystem extends createSystem({}) {
     this.enter('round', true);
     this.view(true);
     this.paintGrid();
+    this.paintDuo();
     this.paintChart();
     this.buttons([
       ['Undo', () => this.undo()],
@@ -660,20 +717,45 @@ export class GameSystem extends createSystem({}) {
       null,
       ['Home', () => this.showHome()],
     ]);
-    this.say(this.roundIsDaily ? "Sign a letter to start today's word" : 'Bonus word: just for fun', 5);
+    this.say(this.duo ? 'Each guess plays on both boards. 7 tries.' : "Sign a letter to start today's word", 6);
   }
 
   private undo(): void {
     if (this.reveal) return;
     this.fx.finish();
+    const duo = this.duo;
+    if (duo) {
+      if (!duo.undo()) return;
+      sound.undo();
+      for (let b = 0; b < 2; b++) {
+        if (duo.solvedAt[b] < 0) this.paintDuoTile(b, duo.guesses.length, duo.current.length, '', null);
+      }
+      return;
+    }
     if (!this.round?.undo()) return;
     sound.undo();
     this.paintTile(this.round.guesses.length, this.round.current.length, '', null);
   }
 
   private submit(): void {
+    if (this.reveal) return;
+    const duo = this.duo;
+    if (duo) {
+      this.fx.finish();
+      if (!duo.canSubmit()) {
+        sound.reject();
+        this.say(`Sign ${WORD_LENGTH - duo.current.length} more letters first`);
+        return;
+      }
+      const row = duo.guesses.length;
+      const result = duo.submit();
+      if (!result) return;
+      sign.listening = false;
+      this.reveal = { row, marks: [], duo: result, shown: 0, timer: 0 };
+      return;
+    }
     const round = this.round;
-    if (!round || this.reveal) return;
+    if (!round) return;
     this.fx.finish();
     if (!round.canSubmit()) {
       sound.reject();
@@ -684,7 +766,7 @@ export class GameSystem extends createSystem({}) {
     const marks = round.submit();
     if (!marks) return;
     sign.listening = false;
-    this.reveal = { row, marks, shown: 0, timer: 0 };
+    this.reveal = { row, marks, duo: null, shown: 0, timer: 0 };
     if (this.roundIsDaily) {
       this.save.today = {
         day: this.day,
@@ -698,15 +780,47 @@ export class GameSystem extends createSystem({}) {
 
   private stepReveal(delta: number): void {
     const reveal = this.reveal;
-    const round = this.round;
-    if (!reveal || !round) return;
+    if (!reveal) return;
     reveal.timer -= delta;
     if (reveal.timer > 0) return;
+    const duo = this.duo;
+    if (duo && reveal.duo) {
+      if (reveal.shown < WORD_LENGTH) {
+        const c = reveal.shown++;
+        let good = false;
+        for (let b = 0; b < 2; b++) {
+          const marks = reveal.duo[b];
+          if (!marks) continue;
+          this.paintDuoTile(b, reveal.row, c, duo.guesses[reveal.row][c], marks[c]);
+          this.pop(`d${b}-${reveal.row}-${c}`, marks[c] === 'absent' ? 0.06 : 0.16);
+          good ||= marks[c] !== 'absent';
+        }
+        sound.reveal(c, good);
+        reveal.timer = 0.16;
+        return;
+      }
+      this.reveal = null;
+      this.paintChart();
+      if (duo.status === 'playing') {
+        const solved = reveal.duo.findIndex((marks) => marks?.every((mark) => mark === 'correct'));
+        if (solved >= 0) {
+          sound.step();
+          this.say(`${solved === 0 ? 'Left' : 'Right'} board solved. One to go.`, 5);
+        }
+        sign.listening = true;
+        sign.hold.lockLetters(POINTING_LETTERS);
+      } else {
+        this.showResult(false);
+      }
+      return;
+    }
+    const round = this.round;
+    if (!round) return;
     if (reveal.shown < WORD_LENGTH) {
       const c = reveal.shown++;
       this.paintTile(reveal.row, c, round.guesses[reveal.row][c], reveal.marks[c]);
       sound.reveal(c, reveal.marks[c] !== 'absent');
-      this.pop(reveal.row, c, reveal.marks[c] === 'absent' ? 0.06 : 0.14);
+      this.pop(`t-${reveal.row}-${c}`, reveal.marks[c] === 'absent' ? 0.06 : 0.14);
       reveal.timer = 0.16;
       return;
     }
@@ -721,6 +835,31 @@ export class GameSystem extends createSystem({}) {
   }
 
   private showResult(revisit: boolean): void {
+    const duo = this.duo;
+    if (duo) {
+      this.enter('result', false);
+      this.view(true);
+      this.paintDuo();
+      this.paintChart();
+      const won = duo.status === 'won';
+      (won ? sound.success : sound.fail)();
+      if (won) {
+        for (let b = 0; b < 2; b++) {
+          for (let c = 0; c < WORD_LENGTH; c++) this.pop(`d${b}-${duo.solvedAt[b]}-${c}`, 0.22, 0.25 + c * 0.09);
+        }
+      }
+      this.say(
+        won ? `Both solved in ${duo.guesses.length}.` : `The words were ${duo.answers[0]} and ${duo.answers[1]}.`,
+        3600,
+      );
+      this.buttons([
+        ['Two boards', () => this.startDuo()],
+        ['Practice', () => this.startPractice()],
+        null,
+        ['Home', () => this.showHome()],
+      ]);
+      return;
+    }
     const round = this.round;
     if (!round) return;
     this.enter('result', false);
@@ -731,7 +870,7 @@ export class GameSystem extends createSystem({}) {
     if (!revisit) (won ? sound.success : sound.fail)();
     // A little wave along the winning row.
     if (won && !revisit) {
-      for (let c = 0; c < WORD_LENGTH; c++) this.pop(round.guesses.length - 1, c, 0.2, 0.25 + c * 0.09);
+      for (let c = 0; c < WORD_LENGTH; c++) this.pop(`t-${round.guesses.length - 1}-${c}`, 0.2, 0.25 + c * 0.09);
     }
     const streak = currentStreak(this.save, this.day);
     const message = won
@@ -741,7 +880,7 @@ export class GameSystem extends createSystem({}) {
       : `The word was ${round.answer}.`;
     this.say(message, 3600);
     this.buttons([
-      ['Bonus word', () => this.startBonus()],
+      ['Two boards', () => this.startDuo()],
       ['Practice', () => this.startPractice()],
       null,
       ['Home', () => this.showHome()],
@@ -787,7 +926,32 @@ export class GameSystem extends createSystem({}) {
       storeSave(this.save);
     }
 
-    if (this.screen === 'round' && this.round && !this.reveal) {
+    const duo = this.duo;
+    if (this.screen === 'round' && duo && !this.reveal) {
+      const col = duo.current.length;
+      const row = duo.guesses.length;
+      if (!duo.addLetter(letter)) {
+        sound.reject();
+        this.say('Row is full. Touch SUBMIT or UNDO.');
+        return;
+      }
+      sound.letter();
+      // One sign lands on every board still in play.
+      const land = () => {
+        if (this.screen !== 'round' || this.duo !== duo) return;
+        if (duo.guesses.length !== row || duo.current[col] !== letter) return;
+        for (let b = 0; b < 2; b++) {
+          if (duo.solvedAt[b] >= 0) continue;
+          this.paintDuoTile(b, row, col, letter, null);
+          this.pop(`d${b}-${row}-${col}`, 0.24);
+        }
+      };
+      const first = duo.solvedAt[0] < 0 ? 0 : 1;
+      if (sign.handSeen) this.fx.accept(sign.handPos, this.duoTileWorld(first, row, col, this.target), land);
+      else land();
+      if (duo.current.length === WORD_LENGTH) this.say('Touch SUBMIT on the bar below', 6);
+      else if (col === 0) this.text('msg', ' ');
+    } else if (this.screen === 'round' && this.round && !this.reveal) {
       const col = this.round.current.length;
       if (!this.round.addLetter(letter)) {
         sound.reject();
@@ -801,7 +965,7 @@ export class GameSystem extends createSystem({}) {
         if (this.screen !== 'round' || !this.round || this.round.guesses.length !== row) return;
         if (this.round.current[col] !== letter) return;
         this.paintTile(row, col, letter, null);
-        this.pop(row, col, 0.2);
+        this.pop(`t-${row}-${col}`, 0.2);
       };
       if (sign.handSeen) this.fx.accept(sign.handPos, this.tileWorld(row, col, this.target), land);
       else land();
