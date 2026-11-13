@@ -96,6 +96,8 @@ export class HoldDetector {
   progress = 0;
   /** True while a pointing shape left over from a button press is being ignored. */
   needsRelax = false;
+  /** True while the shape being held has already been entered (awaiting a change). */
+  entered = false;
 
   private heldMs = 0;
   private missingMs = 0;
@@ -128,6 +130,7 @@ export class HoldDetector {
   /** @returns the letter entered on this frame, or null. */
   update(letter: string | null, dtMs: number, handRaised = true): string | null {
     this.needsRelax = false;
+    this.entered = false;
     if (this.locked !== null) {
       // A hand that is down at the buttons tells us nothing: keep waiting.
       if (this.lockNeedsHand && !handRaised) return null;
@@ -136,6 +139,7 @@ export class HoldDetector {
         this.needsRelax = this.lockNeedsHand;
         this.candidate = this.lockNeedsHand ? null : letter;
         this.progress = this.lockNeedsHand ? 0 : 1;
+        this.entered = !this.lockNeedsHand;
         return null;
       }
       this.awayMs += dtMs;

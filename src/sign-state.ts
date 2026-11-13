@@ -21,6 +21,10 @@ export const sign = {
   listening: false,
   /** Hands near this point are pressing buttons, not signing. */
   controlsCenter: new Vector3(0, 0.74, -0.38),
+  /** World position of the middle of the signing hand (valid while a shape is seen). */
+  handPos: new Vector3(),
+  /** True while handPos is being updated this frame. */
+  handSeen: false,
   hold: new HoldDetector(),
   /** Called once each time a letter is entered. */
   onLetter: null as ((letter: string, left: boolean) => void) | null,

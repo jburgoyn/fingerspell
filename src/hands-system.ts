@@ -152,10 +152,18 @@ export class HandSignSystem extends createSystem({}) {
       // Leave the hold detector alone: it may be holding a post-press lock.
       sign.candidate = null;
       sign.progress = 0;
+      sign.handSeen = false;
       return;
     }
 
-    if (active) this.lastLeft = active.left;
+    if (active) {
+      this.lastLeft = active.left;
+      // Middle of the hand: halfway from the wrist to the middle knuckle.
+      const j = active.joints;
+      const k = J.middleProx * 3;
+      sign.handPos.set((j[0] + j[k]) / 2, (j[1] + j[k + 1]) / 2, (j[2] + j[k + 2]) / 2);
+    }
+    sign.handSeen = active !== null;
     const entered = sign.hold.update(active ? active.stable : null, delta * 1000, raised);
     sign.candidate = sign.hold.candidate;
     sign.progress = sign.hold.progress;

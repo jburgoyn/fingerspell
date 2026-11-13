@@ -33,7 +33,13 @@ function tone(freq: number, start: number, length: number, gain = 0.12, type: Os
 export const sound = {
   /** Call from a user gesture (the Enter VR button) so audio is allowed. */
   unlock: () => void context(),
-  letter: () => tone(660, 0, 0.14),
+  /** A shape has just been recognised (the hold is starting). */
+  seen: () => tone(520, 0, 0.05, 0.035),
+  /** A letter was accepted: a short rising pluck. */
+  letter: () => {
+    tone(660, 0, 0.12, 0.11);
+    tone(990, 0.07, 0.18, 0.08);
+  },
   press: () => tone(420, 0, 0.08, 0.08, 'triangle'),
   undo: () => tone(300, 0, 0.12, 0.08, 'triangle'),
   reject: () => {

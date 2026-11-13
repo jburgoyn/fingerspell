@@ -23,6 +23,7 @@ import {
 } from './game/save.js';
 import { MAX_GUESSES, WORD_LENGTH, dailyWord, dayNumber, randomWord } from './game/words.js';
 import { HandFigure } from './hand-display.js';
+import { LetterFx } from './letter-fx.js';
 import { sign } from './sign-state.js';
 import { sound } from './sound.js';
 
@@ -100,6 +101,12 @@ export class GameSystem extends createSystem({}) {
   private clock = 0;
   private shown = { letter: '', status: '', fill: -1 };
 
+  // Letter feedback: effects at the hand, and tiles that pop when a letter lands.
+  private fx = new LetterFx();
+  private pops = Array.from({ length: 12 }, () => ({ row: 0, col: 0, t: 0, wait: 0, size: 0, active: false }));
+  private lastCandidate: string | null = null;
+  private target = new Vector3();
+
   // scratch
   private head = new Vector3();
   private forward = new Vector3();
@@ -154,6 +161,7 @@ export class GameSystem extends createSystem({}) {
     this.focus.scale.setScalar(1.05);
     this.focus.visible = false;
     this.world.createTransformEntity(this.focus);
+    this.world.createTransformEntity(this.fx);
 
     this.placed.set(this.board, LAYOUT.board);
     this.placed.set(chartLeft, LAYOUT.chartLeft);
@@ -234,6 +242,14 @@ export class GameSystem extends createSystem({}) {
     }
 
     if (this.reveal) this.stepReveal(delta);
+
+    // A quiet tick the moment a shape is recognised, so the player knows it was seen.
+    const candidate = sign.listening ? sign.candidate : null;
+    if (candidate && candidate !== this.lastCandidate) sound.seen();
+    this.lastCandidate = candidate;
+    const holding = sign.listening && sign.handSeen && candidate !== null && !sign.hold.needsRelax && !sign.hold.entered;
+    this.fx.step(delta, holding ? sign.handPos : null, this.player.head, sign.progress);
+    this.stepPops(delta);
 
     if (this.screen === 'tutorial' && this.tutorialStep === 0) {
       this.raisedFor = sign.raised ? this.raisedFor + delta : 0;
@@ -331,6 +347,52 @@ export class GameSystem extends createSystem({}) {
     return this.save.highContrast ? HIGH_CONTRAST : NORMAL;
   }
 
+  /** World position of the centre of a board tile (sizes match scripts/gen-ui.mjs). */
+  private tileWorld(row: number, col: number, out: Vector3): Vector3 {
+    out
+      .set((col - (WORD_LENGTH - 1) / 2) * 0.079, 0.35 - (0.112 + row * 0.079), 0.012)
+      .applyQuaternion(this.board.quaternion)
+      .add(this.board.position);
+    return out;
+  }
+
+  /** Make a tile swell and settle. `wait` staggers a row of them. */
+  private pop(row: number, col: number, size: number, wait = 0): void {
+    const slot = this.pops.find((q) => !q.active || (q.row === row && q.col === col));
+    if (!slot) return;
+    slot.row = row;
+    slot.col = col;
+    slot.size = size;
+    slot.wait = wait;
+    slot.t = 0;
+    slot.active = true;
+  }
+
+  private stepPops(delta: number): void {
+    for (const q of this.pops) {
+      if (!q.active) continue;
+      if (q.wait > 0) {
+        q.wait -= delta;
+        continue;
+      }
+      q.t += delta / 0.28;
+      const done = q.t >= 1;
+      // Quick swell, then an eased settle back to rest.
+      const k = done ? 0 : Math.sin(Math.min(1, q.t) * Math.PI) * (1 - q.t * 0.5);
+      const scale = 1 + q.size * k;
+      this.el.get(`t-${q.row}-${q.col}`)?.setProperties({ transformScaleX: scale, transformScaleY: scale });
+      if (done) q.active = false;
+    }
+  }
+
+  private clearPops(): void {
+    for (const q of this.pops) {
+      if (!q.active) continue;
+      q.active = false;
+      this.el.get(`t-${q.row}-${q.col}`)?.setProperties({ transformScaleX: 1, transformScaleY: 1 });
+    }
+  }
+
   private paintTile(row: number, col: number, letter: string, mark: Mark | null): void {
     const p = this.palette();
     this.text(`tl-${row}-${col}`, letter || ' ');
@@ -387,6 +449,7 @@ export class GameSystem extends createSystem({}) {
 
   private applyPalette(): void {
     this.focus.material.color.setHex(this.palette().hand.unknown);
+    this.fx.setColor(this.save.highContrast ? 0xffffff : 0xf5c542);
     this.paintGrid();
     this.paintChart();
   }
@@ -433,6 +496,8 @@ export class GameSystem extends createSystem({}) {
     this.screen = screen;
     sign.listening = listening;
     sign.hold.reset();
+    this.fx.finish();
+    this.clearPops();
     this.reveal = null;
     this.focus.visible = false;
     this.text('msg', ' ');
@@ -599,7 +664,9 @@ export class GameSystem extends createSystem({}) {
   }
 
   private undo(): void {
-    if (this.reveal || !this.round?.undo()) return;
+    if (this.reveal) return;
+    this.fx.finish();
+    if (!this.round?.undo()) return;
     sound.undo();
     this.paintTile(this.round.guesses.length, this.round.current.length, '', null);
   }
@@ -607,6 +674,7 @@ export class GameSystem extends createSystem({}) {
   private submit(): void {
     const round = this.round;
     if (!round || this.reveal) return;
+    this.fx.finish();
     if (!round.canSubmit()) {
       sound.reject();
       this.say(`Sign ${WORD_LENGTH - round.current.length} more letters first`);
@@ -638,6 +706,7 @@ export class GameSystem extends createSystem({}) {
       const c = reveal.shown++;
       this.paintTile(reveal.row, c, round.guesses[reveal.row][c], reveal.marks[c]);
       sound.reveal(c, reveal.marks[c] !== 'absent');
+      this.pop(reveal.row, c, reveal.marks[c] === 'absent' ? 0.06 : 0.14);
       reveal.timer = 0.16;
       return;
     }
@@ -660,6 +729,10 @@ export class GameSystem extends createSystem({}) {
     this.paintChart();
     const won = round.status === 'won';
     if (!revisit) (won ? sound.success : sound.fail)();
+    // A little wave along the winning row.
+    if (won && !revisit) {
+      for (let c = 0; c < WORD_LENGTH; c++) this.pop(round.guesses.length - 1, c, 0.2, 0.25 + c * 0.09);
+    }
     const streak = currentStreak(this.save, this.day);
     const message = won
       ? this.roundIsDaily
@@ -722,7 +795,16 @@ export class GameSystem extends createSystem({}) {
         return;
       }
       sound.letter();
-      this.paintTile(this.round.guesses.length, col, letter, null);
+      // The letter flies from the hand and lands on its tile.
+      const row = this.round.guesses.length;
+      const land = () => {
+        if (this.screen !== 'round' || !this.round || this.round.guesses.length !== row) return;
+        if (this.round.current[col] !== letter) return;
+        this.paintTile(row, col, letter, null);
+        this.pop(row, col, 0.2);
+      };
+      if (sign.handSeen) this.fx.accept(sign.handPos, this.tileWorld(row, col, this.target), land);
+      else land();
       if (this.round.current.length === WORD_LENGTH) this.say('Touch SUBMIT on the bar below', 6);
       else if (col === 0) this.text('msg', ' ');
     } else if (this.screen === 'practice') {
@@ -733,6 +815,7 @@ export class GameSystem extends createSystem({}) {
       this.save.practice[letter] = (this.save.practice[letter] ?? 0) + 1;
       storeSave(this.save);
       this.practiceRun++;
+      if (sign.handSeen) this.fx.accept(sign.handPos, this.focus.position, () => {});
       sound.step();
       this.nextPracticeLetter();
       this.say(`Nice ${letter}. ${this.practiceRun} in a row.`);
@@ -742,6 +825,7 @@ export class GameSystem extends createSystem({}) {
         return;
       }
       this.advanceTutorial();
+      if (sign.handSeen) this.fx.accept(sign.handPos, this.focus.position, () => {});
     }
   }
 }
