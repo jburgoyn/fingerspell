@@ -82,17 +82,23 @@ comes first. Then the motion letters J and Z, more letters as tracking allows,
 a share-your-result card, and a two-player mode where one person signs and the
 other guesses. Target launch date: **TODO**.
 
-## Screenshots to capture (last year's winners each had 5 to 10, captioned)
+## Screenshots (in `screenshots/`, captured in the simulator, 900 x 1000)
 
-Take these in the headset if possible; simulator captures are allowed.
+Last year's winners each had 5 to 10, captioned. Retake any of these in the
+headset if you can; real-hand shots are stronger.
 
-1. A letter mid-hold: hand raised, bar half full. Caption: "Make the shape, hold, and it types."
-2. The tutorial after Y, O, U. Caption: "Spelling a word inside the first minute."
-3. A round in progress with two marked guesses. Caption: "Right place, wrong place, not in the word."
-4. The win screen with the streak. Caption: "One word a day."
-5. Practice mode with the 3D reference hand. Caption: "Practice any of the 17 shapes."
-6. A fingertip on the button bar. Caption: "Buttons are touched, never pinched, so letters can't click them."
-7. Options with the colour-blind palette on. Caption: "Either hand, adjustable hold time, never colour alone."
+| File | Caption |
+| --- | --- |
+| `1-hold.png` | Make the shape, hold while the ring fills, and it types. |
+| `2-tutorial.png` | Spelling a word inside the first minute. |
+| `3-round.png` | Right place, wrong place, not in the word. |
+| `4-win.png` | One word a day, and a streak to keep. |
+| `4b-win-confetti.png` | Solved. (Alternative win shot, taken looking down at the bar.) |
+| `5-practice.png` | Practice any of the 17 shapes. |
+| `6-button.png` | Buttons are touched, never pinched, so letters can't click them. |
+| `7-contrast.png` | A colour-blind friendly palette; results never rely on colour alone. |
+| `8-two-boards.png` | Two boards: every guess plays on two words at once. |
+| `9-two-boards-win.png` | Both solved. |
 
 ## How hand interactions are implemented
 

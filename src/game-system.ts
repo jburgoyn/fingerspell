@@ -10,6 +10,7 @@ import {
   VisibilityState,
 } from '@iwsdk/core';
 import { SUPPORTED_LETTERS } from './game/hand-model.js';
+import { Ambience } from './ambience.js';
 import { DUO_MAX_GUESSES, DuoRound, Mark, Round } from './game/logic.js';
 import {
   HOLD_OPTIONS,
@@ -70,6 +71,7 @@ const LAYOUT = {
   chartRight: { pos: [0.44, -0.12, -0.95], rot: [0, -22, 0] },
   controls: { pos: [0, -0.46, -0.38], rot: [-40, 0, 0] },
   focus: { pos: [0, -0.2, -0.92], rot: [0, 0, 0] },
+  ambience: { pos: [0, 0, 0], rot: [0, 0, 0] },
 } as const;
 
 export class GameSystem extends createSystem({}) {
@@ -111,6 +113,7 @@ export class GameSystem extends createSystem({}) {
 
   // Letter feedback: effects at the hand, and tiles that pop when a letter lands.
   private fx = new LetterFx();
+  private ambience = new Ambience();
   private pops = Array.from({ length: 16 }, () => ({ id: '', t: 0, wait: 0, size: 0, active: false }));
   private lastCandidate: string | null = null;
   private target = new Vector3();
@@ -178,6 +181,7 @@ export class GameSystem extends createSystem({}) {
     this.focus.visible = false;
     this.world.createTransformEntity(this.focus);
     this.world.createTransformEntity(this.fx);
+    this.world.createTransformEntity(this.ambience);
 
     this.placed.set(this.board, LAYOUT.board);
     this.placed.set(chartLeft, LAYOUT.chartLeft);
@@ -186,6 +190,7 @@ export class GameSystem extends createSystem({}) {
     this.placed.set(this.chartGroups.right, LAYOUT.chartRight);
     this.placed.set(this.controls, LAYOUT.controls);
     this.placed.set(this.focus, LAYOUT.focus);
+    this.placed.set(this.ambience, LAYOUT.ambience);
     this.placeRig(this.head.set(0, 1.2, 0), 0);
 
     sign.onLetter = (letter, left) => this.onLetter(letter, left);
@@ -213,6 +218,11 @@ export class GameSystem extends createSystem({}) {
     if (import.meta.env.DEV) {
       // Dev server only: F9 wipes the saved progress and reloads, for a fresh run.
       const onReset = (e: KeyboardEvent) => {
+        if (e.key === 'F8') {
+          // Dev server only: F8 logs what the renderer drew last frame.
+          const r = this.world.renderer.info.render;
+          console.log(`[fingerspell] render calls=${r.calls} triangles=${r.triangles}`);
+        }
         if (e.key !== 'F9') return;
         localStorage.removeItem('fingerspell.save.v1');
         location.reload();
@@ -265,6 +275,7 @@ export class GameSystem extends createSystem({}) {
     this.lastCandidate = candidate;
     const holding = sign.listening && sign.handSeen && candidate !== null && !sign.hold.needsRelax && !sign.hold.entered;
     this.fx.step(delta, holding ? sign.handPos : null, this.player.head, sign.progress);
+    this.ambience.step(delta, holding ? sign.progress : 0);
     this.stepPops(delta);
 
     if (this.screen === 'tutorial' && this.tutorialStep === 0) {
@@ -498,6 +509,7 @@ export class GameSystem extends createSystem({}) {
   private applyPalette(): void {
     this.focus.material.color.setHex(this.palette().hand.unknown);
     this.fx.setColor(this.save.highContrast ? 0xffffff : 0xf5c542);
+    this.ambience.setPalette(this.palette().correct, this.palette().present);
     this.paintGrid();
     this.paintDuo();
     this.paintChart();
@@ -667,6 +679,7 @@ export class GameSystem extends createSystem({}) {
     this.enter('tutorial', false);
     this.tutorialStep = TUTORIAL_WORD.length + 1;
     sound.success();
+    this.ambience.celebrate();
     this.info(
       `You spelled ${TUTORIAL_WORD}`,
       ['That is the whole game.', 'Guess the five-letter word in six tries.', 'Touch DAILY WORD on the bar below.'],
@@ -844,6 +857,7 @@ export class GameSystem extends createSystem({}) {
       const won = duo.status === 'won';
       (won ? sound.success : sound.fail)();
       if (won) {
+        this.ambience.celebrate();
         for (let b = 0; b < 2; b++) {
           for (let c = 0; c < WORD_LENGTH; c++) this.pop(`d${b}-${duo.solvedAt[b]}-${c}`, 0.22, 0.25 + c * 0.09);
         }
@@ -870,6 +884,7 @@ export class GameSystem extends createSystem({}) {
     if (!revisit) (won ? sound.success : sound.fail)();
     // A little wave along the winning row.
     if (won && !revisit) {
+      this.ambience.celebrate();
       for (let c = 0; c < WORD_LENGTH; c++) this.pop(`t-${round.guesses.length - 1}-${c}`, 0.2, 0.25 + c * 0.09);
     }
     const streak = currentStreak(this.save, this.day);
@@ -936,6 +951,7 @@ export class GameSystem extends createSystem({}) {
         return;
       }
       sound.letter();
+      this.ambience.flash();
       // One sign lands on every board still in play.
       const land = () => {
         if (this.screen !== 'round' || this.duo !== duo) return;
@@ -959,6 +975,7 @@ export class GameSystem extends createSystem({}) {
         return;
       }
       sound.letter();
+      this.ambience.flash();
       // The letter flies from the hand and lands on its tile.
       const row = this.round.guesses.length;
       const land = () => {
@@ -979,6 +996,7 @@ export class GameSystem extends createSystem({}) {
       this.save.practice[letter] = (this.save.practice[letter] ?? 0) + 1;
       storeSave(this.save);
       this.practiceRun++;
+      this.ambience.flash();
       if (sign.handSeen) this.fx.accept(sign.handPos, this.focus.position, () => {});
       sound.step();
       this.nextPracticeLetter();
@@ -989,6 +1007,7 @@ export class GameSystem extends createSystem({}) {
         return;
       }
       this.advanceTutorial();
+      this.ambience.flash();
       if (sign.handSeen) this.fx.accept(sign.handPos, this.focus.position, () => {});
     }
   }

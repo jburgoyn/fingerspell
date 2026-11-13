@@ -10,8 +10,8 @@ import {
 } from '@iwsdk/core';
 import { BONES, JOINT_COUNT, LETTER_POSES, buildHandWorld } from './game/hand-model.js';
 
-const sphere = new SphereGeometry(1, 12, 8);
-const cylinder = new CylinderGeometry(1, 1, 1, 10, 1, true);
+const sphere = new SphereGeometry(1, 8, 6);
+const cylinder = new CylinderGeometry(1, 1, 1, 8, 1, true);
 
 const m = new Matrix4();
 const q = new Quaternion();
