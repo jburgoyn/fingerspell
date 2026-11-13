@@ -16,55 +16,82 @@ Draft only. Nothing has been submitted. Items marked **TODO** need you.
 | Target launch date | **TODO** (the rules ask for one if the app is not already on the store) |
 | Special awards to mention | Best First Five Minutes, Best Reason to Come Back, Best Accessibility Forward Experience, Boldest Original Concept |
 
-## Description (about 480 words, limit 500)
+## Description (Devpost's standard headings; limit 500 words)
 
-**Fingerspell is a daily word game you play by signing.**
+### Inspiration
 
-Every day there is one five-letter word. You guess it by spelling with your
-hand, one letter at a time, using ASL fingerspelling handshapes. The headset
-reads the shape of your hand, you hold it for a moment, and the letter drops
-into the board. After each guess every letter is marked: right place, wrong
-place, or not in the word. Six tries. Solve it and your streak grows; come
-back tomorrow for the next word.
+Daily word games are a habit millions of people already have, and they are
+played on a keyboard. In a headset with hand tracking, the keyboard can be
+your hand. Fingerspelling is a real, existing way of spelling with one hand,
+so the input is not an invented gesture set: it is something worth knowing
+after the headset comes off.
 
-**Inspiration.** Daily word games are a habit millions of people already
-have, and they are played on a keyboard. In a headset with hand tracking the
-keyboard can be your hand. Fingerspelling is a real, existing way of spelling
-with one hand, so the input is not an invented gesture set: it is something
-worth knowing after the headset comes off.
+### What it does
 
-**Why it only works here.** Take away hand tracking and there is no game. The
-core loop is the feeling of making a shape, watching the bar fill, and seeing
-your own hand type a letter.
+Fingerspell is a daily word game you play by signing. Every day there is one
+five-letter word. You spell each guess one letter at a time with ASL
+fingerspelling handshapes: make the shape, hold it while a bar fills, and the
+letter drops onto the board. Each guess is marked right place, wrong place or
+not in the word. Six tries, a daily streak, about five minutes, sitting down,
+no controllers at any point.
 
-**The first minute.** There is no wall of text. The game asks you to raise a
-hand, shows a 3D hand to copy, and you sign Y, then O, then U. You have
-spelled a word before you have read a paragraph. One fingertip touch starts
-today's puzzle.
+A three-shape tutorial has you spelling a word inside the first minute, and a
+practice mode tracks which letters you have learned. Either hand works, the
+hold time is adjustable, and results never rely on colour alone.
 
-**Built for a chair.** Everything is placed around your seated head position:
-the board a metre away inside a narrow field of view, a button bar within
-easy reach, handshape charts at either side. A full session is about five
-minutes. Today's progress is saved, so you can stop and resume.
+### How we built it
 
-**A reason to come back.** One shared word per day, a streak, and a practice
-mode that tracks which of the 17 letters you have learned.
+It is a WebXR app built with Meta's Immersive Web SDK, so it runs in the
+Quest browser from a link. The game reads the 25 hand joints each frame, and a
+purpose-built recogniser scores each letter from finger bend, thumb position
+and fingertip contact. There is no machine-learning model, no camera image and
+no server: the word, the streak and the recognition all stay on the headset.
+Everything is placed around the player's seated head position.
 
-**Accessible by default.** Either hand works at any moment and the pictures
-flip to match. The hold time is adjustable from 0.6 to 1.8 seconds. Results
-never rely on colour alone, and there is a colour-blind friendly palette.
-Every sound has a visual twin. The whole game can be played one-handed.
+### Challenges we ran into
 
-**Honest limits.** Fingerspell supports 17 static letters (A B C D E F G H I
-L O R U V W X Y). J and Z are movements; M, N, S, T, K, P and Q are too
-alike for headset tracking to separate reliably, so the word list avoids
-them. It is a game that uses fingerspelling, not a sign-language course or a
-certified teaching tool, and it has not yet been reviewed by Deaf signers.
-Fingerspelling is one small part of ASL.
+Letters fighting buttons. F, O and D are thumb-to-finger shapes that a
+pinch-to-click interface would read as clicks, so buttons are touched with a
+fingertip and ignore far pinches. The finger that has just pressed a button is
+still pointing, which is the shape for D, so that shape is ignored until the
+hand changes.
 
-**What is next.** Review of the handshapes and wording with Deaf signers, the
-motion letters J and Z, more letters as tracking allows, a share-your-result
-card, and a two-player mode where one person signs and the other guesses.
+Look-alike letters were the other problem. M, N, S and T are fists that differ
+only by a hidden thumb, so the word list avoids them rather than guessing.
+
+### Accomplishments that we're proud of
+
+A complete, replayable game with no controller and no backend, a first minute
+with no wall of text, and 97 automated tests, including the recogniser checked
+against hand poses that were not made for this game. **TODO:** add one line on
+how it held up on the headset.
+
+### What we learned
+
+Hand input is mostly about what not to accept. Hold-to-confirm, ignoring
+lowered hands, and making the hand change shape before a repeat did more for
+the feel than raw recognition accuracy.
+
+### What's next for Fingerspell
+
+Fingerspell supports 17 static letters (A B C D E F G H I L O R U V W X Y). It
+is a game that uses fingerspelling, not a sign-language course or a certified
+teaching tool, and it has not yet been reviewed by Deaf signers; that review
+comes first. Then the motion letters J and Z, more letters as tracking allows,
+a share-your-result card, and a two-player mode where one person signs and the
+other guesses. Target launch date: **TODO**.
+
+## Screenshots to capture (last year's winners each had 5 to 10, captioned)
+
+Take these in the headset if possible; simulator captures are allowed.
+
+1. A letter mid-hold: hand raised, bar half full. Caption: "Make the shape, hold, and it types."
+2. The tutorial after Y, O, U. Caption: "Spelling a word inside the first minute."
+3. A round in progress with two marked guesses. Caption: "Right place, wrong place, not in the word."
+4. The win screen with the streak. Caption: "One word a day."
+5. Practice mode with the 3D reference hand. Caption: "Practice any of the 17 shapes."
+6. A fingertip on the button bar. Caption: "Buttons are touched, never pinched, so letters can't click them."
+7. Options with the colour-blind palette on. Caption: "Either hand, adjustable hold time, never colour alone."
 
 ## How hand interactions are implemented
 

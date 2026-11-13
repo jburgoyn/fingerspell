@@ -186,6 +186,17 @@ export class GameSystem extends createSystem({}) {
       }),
     );
 
+    if (import.meta.env.DEV) {
+      // Dev server only: F9 wipes the saved progress and reloads, for a fresh run.
+      const onReset = (e: KeyboardEvent) => {
+        if (e.key !== 'F9') return;
+        localStorage.removeItem('fingerspell.save.v1');
+        location.reload();
+      };
+      window.addEventListener('keydown', onReset);
+      this.cleanupFuncs.push(() => window.removeEventListener('keydown', onReset));
+    }
+
     if (new URLSearchParams(location.search).has('keys')) {
       const onKey = (e: KeyboardEvent) => {
         if (e.key >= '1' && e.key <= '4') this.press(Number(e.key) - 1);
