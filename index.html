@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="description" content="Fingerspell: a daily word game you play by signing letters with your hands in VR." />
+    <link rel="icon" href="data:," />
+    <title>Fingerspell</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #12141a; overflow: hidden; }
+      #intro {
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+        display: flex; flex-direction: column; align-items: center; gap: 10px;
+        padding: 20px 16px 26px; text-align: center;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; color: #f4f5f7;
+        background: linear-gradient(to top, rgba(10, 11, 15, 0.95) 55%, rgba(10, 11, 15, 0));
+      }
+      #intro h1 { margin: 0; font-size: 30px; letter-spacing: 3px; }
+      #intro p { margin: 0; max-width: 560px; font-size: 16px; line-height: 1.45; color: #c9ced9; }
+      #intro small { color: #8f96a6; max-width: 560px; }
+      #enter-vr {
+        font: 700 20px system-ui, sans-serif; color: #12141a; background: #f5c542;
+        border: 0; border-radius: 14px; padding: 16px 44px; cursor: pointer;
+      }
+      #enter-vr:disabled { background: #5b6272; cursor: default; }
+    </style>
+  </head>
+  <body>
+    <div id="scene-container"></div>
+    <div id="intro">
+      <h1>FINGERSPELL</h1>
+      <p>A daily word game you play by signing. Put your controllers down: it uses your hands only. Best played sitting.</p>
+      <button id="enter-vr">Enter VR</button>
+      <small id="intro-note">Uses ASL fingerspelling handshapes. It is a game, not a teaching tool, and has not been reviewed by Deaf signers.</small>
+    </div>
+    <script type="module" src="/src/index.ts"></script>
+  </body>
+</html>

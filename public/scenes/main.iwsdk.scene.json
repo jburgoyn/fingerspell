@@ -1,0 +1,86 @@
+{
+  "version": "iwsdk.scene.v1",
+  "units": "meters",
+  "components": {
+    "com.iwsdk.components.DomeGradient": {
+      "sky": [0.07, 0.08, 0.2, 1],
+      "equator": [0.36, 0.26, 0.5, 1],
+      "ground": [0.16, 0.14, 0.24, 1],
+      "elevationDeg": 18,
+      "azimuthDeg": -31,
+      "dither": true
+    },
+    "com.iwsdk.components.IBLGradient": {
+      "sky": [0.6, 0.6, 0.8, 1],
+      "equator": [0.7, 0.66, 0.8, 1],
+      "ground": [0.4, 0.4, 0.5, 1],
+      "intensity": 0.25
+    }
+  },
+  "environment": {
+    "toneMapping": "aces",
+    "exposure": 1.1,
+    "shadows": false
+  },
+  "resources": {},
+  "nodes": [
+    {
+      "id": "studio-floor",
+      "name": "Studio Floor",
+      "framingRole": "support",
+      "content": { "type": "asset", "asset": "studio-floor" },
+      "components": { "DomeFade": { "start": 3, "end": 9 } }
+    },
+    {
+      "id": "stage",
+      "name": "Stage",
+      "framingRole": "support",
+      "content": { "type": "asset", "asset": "stage" },
+      "transform": { "position": [0, 0, -0.4] }
+    },
+    {
+      "id": "board",
+      "name": "Board",
+      "content": { "type": "asset", "asset": "board" },
+      "transform": { "position": [0, 1.08, -1.0] }
+    },
+    {
+      "id": "chart-left",
+      "name": "Handshape Chart Left",
+      "content": { "type": "asset", "asset": "chart-left" },
+      "transform": { "position": [-0.44, 1.08, -0.95], "rotationDeg": [0, 22, 0] }
+    },
+    {
+      "id": "chart-right",
+      "name": "Handshape Chart Right",
+      "content": { "type": "asset", "asset": "chart-right" },
+      "transform": { "position": [0.44, 1.08, -0.95], "rotationDeg": [0, -22, 0] }
+    },
+    {
+      "id": "controls",
+      "name": "Controls",
+      "content": { "type": "asset", "asset": "controls" },
+      "transform": { "position": [0, 0.74, -0.38], "rotationDeg": [-40, 0, 0] },
+      "components": { "PokeInteractable": {} }
+    },
+    {
+      "id": "key-light",
+      "name": "Key Light",
+      "transform": { "position": [-2, 6, 2], "rotationDeg": [-60, -25, 0] },
+      "components": {
+        "DirectionalLight": { "color": [1, 0.95, 0.88, 1], "intensity": 2.2 }
+      }
+    },
+    {
+      "id": "fill-light",
+      "name": "Fill Light",
+      "components": {
+        "HemisphereLight": {
+          "skyColor": [0.75, 0.78, 0.95, 1],
+          "groundColor": [0.45, 0.42, 0.55, 1],
+          "intensity": 1.2
+        }
+      }
+    }
+  ]
+}
