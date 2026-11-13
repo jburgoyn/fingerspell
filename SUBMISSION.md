@@ -11,7 +11,7 @@ Draft only. Nothing has been submitted. Items marked **TODO** need you.
 | Track | Gaming |
 | Division | New Experience (started 12 November 2026, inside the competition window; no earlier code or builds) |
 | Built with | Immersive Web SDK (WebXR), TypeScript, three.js, UIKitML |
-| Link for judges | **TODO**: the hosted URL (GitHub Pages or Vercel) |
+| Link for judges | https://jburgoyn.github.io/fingerspell/ (source: https://github.com/jburgoyn/fingerspell) |
 | Video (under 3 minutes, public on YouTube or Vimeo) | **TODO** |
 | Target launch date | **TODO** (the rules ask for one if the app is not already on the store) |
 | Special awards to mention | Best First Five Minutes, Best Reason to Come Back, Best Accessibility Forward Experience, Boldest Original Concept |
